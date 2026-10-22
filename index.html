@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Uptime</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div><p>SITE MONITORING</p><h1>Uptime</h1><span>HTTP, HTTPS &amp; TCP checks with independent latency history.</span></div>
+        <div class="top-actions"><strong id="connection-status" role="status">Loading uptime data…</strong><button id="theme-toggle" type="button" aria-label="Toggle color theme">☼</button></div>
+      </header>
+      <section id="uptime-monitors" aria-label="Monitored services">
+        <section class="uptime-section" aria-labelledby="lochner-uptime-heading">
+          <header><p>LOCHNER NETWORK</p><h2 id="lochner-uptime-heading">Lochner</h2><span>Core Lochner services, community sites, and independent IPFS publication verification.</span></header>
+          <div class="uptime-monitor-grid" data-monitor-group="lochner"></div>
+        </section>
+        <section class="uptime-section" aria-labelledby="alfmir-uptime-heading">
+          <header><p>ALFMIR NETWORK</p><h2 id="alfmir-uptime-heading">Alfmir</h2><span>Alfmir AI, chat, code, and LiteLLM services.</span></header>
+          <div class="uptime-monitor-grid" data-monitor-group="alfmir"></div>
+        </section>
+      </section>
+    </main>
+    <dialog id="uptime-chart-dialog" class="uptime-chart-dialog" aria-labelledby="uptime-chart-title">
+      <header><div><p class="eyebrow">ALL-TIME UPTIME HISTORY</p><h2 id="uptime-chart-title">Latency history</h2><span id="uptime-chart-subtitle"></span></div><button class="dialog-close" type="button" aria-label="Close all-time chart">×</button></header>
+      <div id="uptime-full-chart" class="monitor-chart uptime-full-chart" role="img"></div>
+      <div class="uptime-range-presets" aria-label="Chart timeframe"><button type="button" data-range="day">1D</button><button type="button" data-range="week">1W</button><button type="button" data-range="month">1M</button><button type="button" data-range="year">1Y</button><button type="button" data-range="all">All</button></div>
+      <div class="uptime-navigator"><div id="uptime-navigator-plot" aria-hidden="true"></div><div class="uptime-range-inputs"><input id="uptime-range-start" type="range" aria-label="Start of visible timeframe"><input id="uptime-range-end" type="range" aria-label="End of visible timeframe"></div></div>
+      <div id="uptime-range-label" class="uptime-range-label" aria-live="polite"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

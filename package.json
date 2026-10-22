@@ -1,0 +1,17 @@
+{
+  "name": "uptime-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone uptime dashboard for HTTP, HTTPS, TCP, and IPFS checks.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1"
+  }
+}

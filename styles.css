@@ -1,0 +1,71 @@
+:root { --bg:#f7f9fc; --panel:#fff; --ink:#13243a; --muted:#718096; --line:#e4eaf1; --blue:#0878ff; --soft:#edf5ff; color-scheme:light; }
+:root.dark { --bg:#0e1621; --panel:#141f2d; --ink:#eef5ff; --muted:#91a1b6; --line:#283547; --soft:#192c43; color-scheme:dark; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--ink); background:var(--bg); font:15px/1.45 Inter,ui-sans-serif,system-ui,sans-serif; }
+button,input { font:inherit; }
+button { -webkit-tap-highlight-color:transparent; }
+.shell { width:min(1280px,calc(100% - 40px)); min-height:100vh; margin:auto; padding-bottom:50px; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:35px 0 25px; border-bottom:1px solid var(--line); }
+.topbar p,.uptime-section>header p { margin:0 0 4px; color:var(--blue); font-size:10px; font-weight:800; letter-spacing:.14em; }
+.topbar h1 { margin:0; font-size:30px; letter-spacing:-.04em; }
+.topbar>div:first-child>span { display:block; margin-top:5px; color:var(--muted); font-size:13px; }
+.top-actions { display:flex; align-items:center; gap:12px; }
+#connection-status { color:var(--muted); font-size:12px; }
+#connection-status.error { color:#d43f58; }
+.top-actions button,.dialog-close { width:38px; height:38px; border:1px solid var(--line); border-radius:50%; color:var(--muted); background:var(--panel); cursor:pointer; }
+#uptime-monitors { display:grid; gap:34px; padding-top:25px; }
+.uptime-section>header { margin-bottom:13px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.uptime-section>header h2 { margin:0; font-size:20px; }
+.uptime-section>header span { display:block; margin-top:4px; color:var(--muted); font-size:12px; }
+.uptime-monitor-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.monitor-card { min-width:0; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
+.monitor-card>header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.monitor-card header p { margin:0 0 4px; color:var(--blue); font-size:10px; font-weight:800; letter-spacing:.12em; }
+.monitor-card h3 { margin:0; overflow-wrap:anywhere; font-size:16px; }
+.monitor-card header div>small { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+.monitor-health { padding:5px 8px; border-radius:999px; color:#177245; background:#20a4641b; font-size:10px; font-weight:800; white-space:nowrap; }
+.monitor-health.failed { color:#a52d42; background:#d43f5818; }
+.monitor-controls { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; margin-top:16px; }
+.monitor-controls label,.monitor-controls small { color:var(--muted); font-size:11px; }
+.monitor-controls input { width:65px; margin:0 4px; padding:6px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink); }
+.monitor-controls small { grid-column:1/-1; }
+.switch { flex:0 0 42px; width:42px; height:24px; padding:3px; border:0; border-radius:20px; background:var(--muted); cursor:pointer; transition:.2s; }
+.switch span { display:block; width:18px; height:18px; border-radius:50%; background:white; transition:.2s; }
+.switch[aria-checked="true"] { background:var(--blue); }
+.switch[aria-checked="true"] span { translate:18px 0; }
+.monitor-chart { position:relative; min-height:184px; margin-top:14px; border-top:1px solid var(--line); }
+.monitor-chart:not(.empty) { cursor:zoom-in; }
+.monitor-chart.empty { display:grid; place-items:center; color:var(--muted); font-size:11px; text-align:center; }
+.monitor-chart svg { display:block; width:100%; margin-top:8px; overflow:visible; }
+.latency-area { fill:color-mix(in srgb,var(--blue) 12%,transparent); }
+.latency-line { fill:none; stroke:var(--blue); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.monitor-chart circle { fill:var(--panel); stroke:var(--blue); stroke-width:2.5; cursor:crosshair; outline:none; }
+.monitor-chart circle:is(:hover,:focus) { r:6px; fill:var(--blue); }
+.monitor-chart circle.failed { fill:#d43f58; stroke:#d43f58; }
+.monitor-tooltip { position:absolute; z-index:2; display:grid; gap:2px; min-width:max-content; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--ink); color:var(--bg); font-size:10px; pointer-events:none; transform:translate(-50%,calc(-100% - 8px)); box-shadow:0 6px 18px #0003; }
+.monitor-tooltip[hidden] { display:none; }
+.monitor-tooltip span { opacity:.8; }
+.monitor-legend { display:flex; justify-content:space-between; color:var(--muted); font-size:10px; }
+.uptime-chart-dialog { box-sizing:border-box; width:100vw; max-width:none; height:100dvh; max-height:none; margin:0; padding:24px 30px; border:0; background:var(--bg); color:var(--ink); }
+.uptime-chart-dialog::backdrop { background:#0008; }
+.uptime-chart-dialog>header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.uptime-chart-dialog header p,.uptime-chart-dialog header h2 { margin:0; }
+.uptime-chart-dialog header span { display:block; margin-top:5px; color:var(--muted); font-size:12px; }
+.uptime-chart-dialog .dialog-close { flex:0 0 auto; }
+.uptime-full-chart { height:calc(100dvh - 245px); min-height:280px; margin-top:18px; padding-top:8px; }
+.uptime-full-chart svg { height:calc(100% - 24px); }
+.uptime-range-presets { display:flex; justify-content:flex-end; gap:5px; margin-top:8px; }
+.uptime-range-presets button { padding:5px 9px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--muted); cursor:pointer; font-size:10px; font-weight:800; }
+.uptime-range-presets button.active { border-color:var(--blue); background:var(--blue); color:#fff; }
+.uptime-navigator { position:relative; height:42px; margin-top:8px; border:1px solid var(--line); border-radius:7px; background:var(--panel); overflow:hidden; }
+#uptime-navigator-plot { position:absolute; inset:0; opacity:.24; background:linear-gradient(180deg,transparent,var(--blue)); }
+.uptime-range-inputs { position:absolute; inset:0 8px; }
+.uptime-range-inputs input { position:absolute; top:10px; width:100%; height:20px; margin:0; appearance:none; background:transparent; pointer-events:none; }
+.uptime-range-inputs input::-webkit-slider-thumb { width:14px; height:32px; border:2px solid #fff; border-radius:4px; appearance:none; background:var(--blue); box-shadow:0 0 0 1px var(--blue); cursor:ew-resize; pointer-events:auto; }
+.uptime-range-inputs input::-moz-range-thumb { width:12px; height:28px; border:2px solid #fff; border-radius:4px; background:var(--blue); cursor:ew-resize; pointer-events:auto; }
+.uptime-range-label { margin-top:6px; color:var(--muted); font-size:11px; text-align:center; }
+#toast { position:fixed; z-index:20; left:50%; bottom:24px; translate:-50% 20px; padding:10px 16px; border-radius:20px; color:white; background:#16273b; opacity:0; pointer-events:none; transition:.2s; }
+#toast.error { background:#a62f45; }
+#toast.show { translate:-50% 0; opacity:1; }
+@media (max-width:900px) { .uptime-monitor-grid { grid-template-columns:1fr; } }
+@media (max-width:720px) { .shell { width:calc(100% - 28px); }.topbar { align-items:flex-start; }.top-actions { align-items:flex-end; flex-direction:column-reverse; }.uptime-chart-dialog { padding:16px; }.uptime-full-chart { height:calc(100dvh - 250px); } }
