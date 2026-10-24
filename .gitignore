@@ -1,3 +1,6 @@
 node_modules/
-data/
 .env
+
+# Runtime data and historical uptime records
+data/
+*.jsonl
