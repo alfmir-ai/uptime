@@ -20,24 +20,41 @@ let uptimeRefreshTimer;
 const uptimeSaveVersions = new Map();
 const uptimeSaveQueues = new Map();
 const httpFilterStorageKey = 'uptime-show-http-checks';
+const wwwFilterStorageKey = 'uptime-show-www-checks';
 let showHttpChecks = true;
+let showWwwChecks = true;
 try { showHttpChecks = localStorage.getItem(httpFilterStorageKey) !== 'false'; } catch {}
+try { showWwwChecks = localStorage.getItem(wwwFilterStorageKey) !== 'false'; } catch {}
 
 function monitorKind(url) {
   try {
     const { protocol } = new URL(url);
-    return protocol === 'http:' || protocol === 'https:' ? 'http' : 'other';
+    return protocol === 'http:' ? 'http' : protocol === 'https:' ? 'https' : 'other';
   } catch {
     return 'other';
   }
 }
 
-function applyHttpFilter() {
-  const toggle = $('#http-filter-toggle');
-  toggle.setAttribute('aria-checked', String(showHttpChecks));
+function monitorWww(url) {
+  try {
+    return new URL(url).hostname.startsWith('www.');
+  } catch {
+    return false;
+  }
+}
+
+function cardHiddenByFilters(card) {
+  return (card.dataset.requestKind === 'http' && !showHttpChecks)
+    || (card.dataset.requestWww === 'true' && !showWwwChecks);
+}
+
+function applyUptimeFilters() {
+  $('#http-filter-toggle').setAttribute('aria-checked', String(showHttpChecks));
+  $('#www-filter-toggle').setAttribute('aria-checked', String(showWwwChecks));
   try { localStorage.setItem(httpFilterStorageKey, String(showHttpChecks)); } catch {}
+  try { localStorage.setItem(wwwFilterStorageKey, String(showWwwChecks)); } catch {}
   for (const card of document.querySelectorAll('.monitor-card[data-request-job]')) {
-    card.hidden = card.dataset.requestKind === 'http' && !showHttpChecks;
+    card.hidden = cardHiddenByFilters(card);
   }
   for (const section of document.querySelectorAll('.uptime-section')) {
     const cards = [...section.querySelectorAll('.monitor-card[data-request-job]')];
@@ -54,6 +71,7 @@ function buildUptimeMonitors() {
     card.dataset.requestUrl = url;
     card.dataset.requestLabel = label || '';
     card.dataset.requestKind = monitorKind(url);
+    card.dataset.requestWww = String(parsed?.hostname.startsWith('www.') || false);
 
     const header = document.createElement('header');
     const service = document.createElement('div');
@@ -111,7 +129,7 @@ function buildUptimeMonitors() {
   }
 }
 buildUptimeMonitors();
-applyHttpFilter();
+applyUptimeFilters();
 
 function applyMonitorJob(name, job) {
   const card = document.querySelector(`[data-request-job="${name}"]`);
@@ -124,7 +142,8 @@ function applyMonitorJob(name, job) {
   const parsed = new URL(job.url);
   card.dataset.requestUrl = job.url;
   card.dataset.requestKind = monitorKind(job.url);
-  card.hidden = card.dataset.requestKind === 'http' && !showHttpChecks;
+  card.dataset.requestWww = String(monitorWww(job.url));
+  card.hidden = cardHiddenByFilters(card);
   const protocol = card.querySelector('.monitor-protocol');
   if (protocol) protocol.textContent = job.url.split(':', 1)[0].toUpperCase();
   if (host) host.textContent = parsed.host;
@@ -196,7 +215,12 @@ for (const [name, id] of requestMonitors) {
 
 $('#http-filter-toggle').addEventListener('click', () => {
   showHttpChecks = !showHttpChecks;
-  applyHttpFilter();
+  applyUptimeFilters();
+});
+
+$('#www-filter-toggle').addEventListener('click', () => {
+  showWwwChecks = !showWwwChecks;
+  applyUptimeFilters();
 });
 
 function renderUptimeHistory() {
