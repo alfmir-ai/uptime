@@ -19,6 +19,31 @@ let expandedUptimeChecks = [];
 let uptimeRefreshTimer;
 const uptimeSaveVersions = new Map();
 const uptimeSaveQueues = new Map();
+const httpFilterStorageKey = 'uptime-show-http-checks';
+let showHttpChecks = true;
+try { showHttpChecks = localStorage.getItem(httpFilterStorageKey) !== 'false'; } catch {}
+
+function monitorKind(url) {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:' ? 'http' : 'other';
+  } catch {
+    return 'other';
+  }
+}
+
+function applyHttpFilter() {
+  const toggle = $('#http-filter-toggle');
+  toggle.setAttribute('aria-checked', String(showHttpChecks));
+  try { localStorage.setItem(httpFilterStorageKey, String(showHttpChecks)); } catch {}
+  for (const card of document.querySelectorAll('.monitor-card[data-request-job]')) {
+    card.hidden = card.dataset.requestKind === 'http' && !showHttpChecks;
+  }
+  for (const section of document.querySelectorAll('.uptime-section')) {
+    const cards = [...section.querySelectorAll('.monitor-card[data-request-job]')];
+    section.hidden = cards.length > 0 && cards.every((card) => card.hidden);
+  }
+}
 
 function buildUptimeMonitors() {
   for (const [name, id, url, label] of requestMonitors) {
@@ -28,6 +53,7 @@ function buildUptimeMonitors() {
     card.dataset.requestJob = name;
     card.dataset.requestUrl = url;
     card.dataset.requestLabel = label || '';
+    card.dataset.requestKind = monitorKind(url);
 
     const header = document.createElement('header');
     const service = document.createElement('div');
@@ -85,6 +111,7 @@ function buildUptimeMonitors() {
   }
 }
 buildUptimeMonitors();
+applyHttpFilter();
 
 function applyMonitorJob(name, job) {
   const card = document.querySelector(`[data-request-job="${name}"]`);
@@ -96,6 +123,8 @@ function applyMonitorJob(name, job) {
   }
   const parsed = new URL(job.url);
   card.dataset.requestUrl = job.url;
+  card.dataset.requestKind = monitorKind(job.url);
+  card.hidden = card.dataset.requestKind === 'http' && !showHttpChecks;
   const protocol = card.querySelector('.monitor-protocol');
   if (protocol) protocol.textContent = job.url.split(':', 1)[0].toUpperCase();
   if (host) host.textContent = parsed.host;
@@ -164,6 +193,11 @@ for (const [name, id] of requestMonitors) {
   });
   $(`#${id}-interval`).addEventListener('change', () => saveUptimeMonitor(name, id));
 }
+
+$('#http-filter-toggle').addEventListener('click', () => {
+  showHttpChecks = !showHttpChecks;
+  applyHttpFilter();
+});
 
 function renderUptimeHistory() {
   for (const card of document.querySelectorAll('.monitor-card[data-request-job]')) {
