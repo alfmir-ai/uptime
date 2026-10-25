@@ -13,6 +13,10 @@
         <div><p>SITE MONITORING</p><h1>Uptime</h1><span>HTTP, HTTPS &amp; TCP checks with independent latency history.</span></div>
         <div class="top-actions"><strong id="connection-status" role="status">Loading uptime data…</strong><button id="theme-toggle" type="button" aria-label="Toggle color theme">☼</button></div>
       </header>
+      <div class="uptime-filters" role="group" aria-label="Display filters">
+        <span id="http-filter-label">Show HTTP checks</span>
+        <button id="http-filter-toggle" class="switch display-switch" type="button" role="switch" aria-checked="true" aria-labelledby="http-filter-label"><span></span></button>
+      </div>
       <section id="uptime-monitors" aria-label="Monitored services">
         <section class="uptime-section" aria-labelledby="lochner-uptime-heading">
           <header><p>LOCHNER NETWORK</p><h2 id="lochner-uptime-heading">Lochner</h2><span>Core Lochner services, community sites, and independent IPFS publication verification.</span></header>
