@@ -36,7 +36,7 @@ button { -webkit-tap-highlight-color:transparent; }
 .switch span { display:block; width:18px; height:18px; border-radius:50%; background:white; transition:.2s; }
 .switch[aria-checked="true"] { background:var(--blue); }
 .switch[aria-checked="true"] span { translate:18px 0; }
-.monitor-chart { position:relative; min-height:184px; margin-top:14px; border-top:1px solid var(--line); }
+.monitor-chart { position:relative; min-height:55px; margin-top:14px; border-top:1px solid var(--line); }
 .monitor-chart:not(.empty) { cursor:zoom-in; }
 .monitor-chart.empty { display:grid; place-items:center; color:var(--muted); font-size:11px; text-align:center; }
 .monitor-chart svg { display:block; width:100%; margin-top:8px; overflow:visible; }

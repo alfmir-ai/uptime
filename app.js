@@ -238,8 +238,8 @@ function drawUptimeChart(chart, allChecks, { full = false } = {}) {
   chart.classList.remove('empty');
   const checks = allChecks.length <= 1500 ? allChecks : allChecks.filter((check, index) => index === 0 || index === allChecks.length - 1 || check.outcome !== 'ok' || index % Math.ceil(allChecks.length / 1500) === 0);
   const width = full ? 1200 : 600;
-  const height = full ? 500 : 160;
-  const padding = full ? 32 : 18;
+  const height = full ? 500 : 48;
+  const padding = full ? 32 : 5;
   const maximum = Math.max(1, ...checks.map((check) => Number(check.latencyMs) || 0));
   const firstTime = new Date(checks[0].ranAt).getTime();
   const lastTime = new Date(checks.at(-1).ranAt).getTime();
