@@ -5,7 +5,9 @@ const requestMonitors = [
   ['httpLochnerAlfmirPage', 'http-lochner-alfmir-page', 'http://lochner.tech/alfmir.ai.html', 'Alfmir AI page'], ['httpsLochnerAlfmirPage', 'https-lochner-alfmir-page', 'https://lochner.tech/alfmir.ai.html', 'Alfmir AI page'],
   ['httpLochnerApparelPage', 'http-lochner-apparel-page', 'http://lochner.tech/lochner-apparel.html', 'Lochner Apparel page'], ['httpsLochnerApparelPage', 'https-lochner-apparel-page', 'https://lochner.tech/lochner-apparel.html', 'Lochner Apparel page'],
   ['httpLemmy', 'http-lemmy', 'http://lemmy.lochner.tech'], ['httpsLemmy', 'https-lemmy', 'https://lemmy.lochner.tech'],
+  ['httpsLemmySecond', 'https-lemmy-second', 'https://lemmy.lochner.tech', 'Lemmy (second check)', 'seconds'],
   ['httpNews', 'http-news', 'http://news.lochner.tech'], ['httpsNews', 'https-news', 'https://news.lochner.tech'],
+  ['httpsNewsSecond', 'https-news-second', 'https://news.lochner.tech', 'News (second check)', 'seconds'],
   ['tcpIpfsPublishing', 'tcp-ipfs-publishing', '', 'IPFS Publishing Host'],
   ['ipfsLochnerVerification', 'ipfs-lochner-verification', 'ipfs://lochner.tech', 'IPFS Verification'],
   ['httpAlfmir', 'http-alfmir', 'http://alfmir.ai'], ['httpsAlfmir', 'https-alfmir', 'https://alfmir.ai'],
@@ -14,6 +16,10 @@ const requestMonitors = [
   ['httpCodeAlfmir', 'http-code-alfmir', 'http://code.alfmir.ai'], ['httpsCodeAlfmir', 'https-code-alfmir', 'https://code.alfmir.ai'],
   ['httpLitellmAlsh', 'http-litellm-alsh', 'http://litellm.alfe.sh'], ['httpsLitellmAlsh', 'https-litellm-alsh', 'https://litellm.alfe.sh']
 ];
+const primaryMonitorForUrl = new Map();
+for (const [name, , url] of requestMonitors) {
+  if (url && !primaryMonitorForUrl.has(url)) primaryMonitorForUrl.set(url, name);
+}
 let requestHistory = [];
 let expandedUptimeChecks = [];
 let uptimeRefreshTimer;
@@ -43,6 +49,11 @@ function monitorWww(url) {
   }
 }
 
+function historyMatchesJob(entry, jobName, url) {
+  if (entry.job) return entry.job === jobName;
+  return primaryMonitorForUrl.get(url) === jobName;
+}
+
 function cardHiddenByFilters(card) {
   return (card.dataset.requestKind === 'http' && !showHttpChecks)
     || (card.dataset.requestWww === 'true' && !showWwwChecks);
@@ -63,7 +74,7 @@ function applyUptimeFilters() {
 }
 
 function buildUptimeMonitors() {
-  for (const [name, id, url, label] of requestMonitors) {
+  for (const [name, id, url, label, intervalUnit = 'minutes'] of requestMonitors) {
     const parsed = url ? new URL(url) : null;
     const card = document.createElement('article');
     card.className = 'monitor-card';
@@ -72,6 +83,7 @@ function buildUptimeMonitors() {
     card.dataset.requestLabel = label || '';
     card.dataset.requestKind = monitorKind(url);
     card.dataset.requestWww = String(parsed?.hostname.startsWith('www.') || false);
+    card.dataset.intervalUnit = intervalUnit;
 
     const header = document.createElement('header');
     const service = document.createElement('div');
@@ -100,10 +112,10 @@ function buildUptimeMonitors() {
     interval.id = `${id}-interval`;
     interval.type = 'number';
     interval.min = '1';
-    interval.max = '1440';
-    interval.value = '5';
+    interval.max = intervalUnit === 'seconds' ? '86400' : '1440';
+    interval.value = intervalUnit === 'seconds' ? '60' : '5';
     interval.required = true;
-    intervalLabel.append(interval, ' minutes');
+    intervalLabel.append(interval, ` ${intervalUnit}`);
     const toggle = document.createElement('button');
     toggle.id = `${id}-toggle`;
     toggle.className = 'switch';
@@ -174,7 +186,7 @@ async function loadJobs() {
     if (!job) continue;
     applyMonitorJob(name, job);
     $(`#${id}-toggle`).setAttribute('aria-checked', String(job.enabled));
-    $(`#${id}-interval`).value = String(job.interval || 5);
+    $(`#${id}-interval`).value = String(job.interval || (job.intervalUnit === 'seconds' ? 60 : 5));
     $(`#${id}-job-status`).textContent = jobStatus(job);
   }
 }
@@ -235,7 +247,7 @@ function renderUptimeHistory() {
       health.classList.remove('failed');
       continue;
     }
-    const checks = requestHistory.filter((entry) => entry.url === url).sort((a, b) => new Date(a.ranAt) - new Date(b.ranAt)).slice(-40);
+    const checks = requestHistory.filter((entry) => historyMatchesJob(entry, card.dataset.requestJob, url)).sort((a, b) => new Date(a.ranAt) - new Date(b.ranAt)).slice(-40);
     if (!checks.length) {
       chart.classList.add('empty');
       chart.textContent = 'Latency history will appear after the first check.';
@@ -326,11 +338,12 @@ function drawUptimeChart(chart, allChecks, { full = false } = {}) {
   chart.append(svg, tooltip, legend);
 }
 
-function openUptimeChart(url) {
-  expandedUptimeChecks = requestHistory.filter((entry) => entry.url === url).sort((a, b) => new Date(a.ranAt) - new Date(b.ranAt));
+function openUptimeChart(card) {
+  const url = card.dataset.requestUrl;
+  expandedUptimeChecks = requestHistory.filter((entry) => historyMatchesJob(entry, card.dataset.requestJob, url)).sort((a, b) => new Date(a.ranAt) - new Date(b.ranAt));
   if (!expandedUptimeChecks.length) return;
   const parsed = new URL(url);
-  const label = document.querySelector(`[data-request-url="${url}"]`)?.dataset.requestLabel;
+  const label = card.dataset.requestLabel;
   $('#uptime-chart-title').textContent = label || parsed.host;
   $('#uptime-chart-subtitle').textContent = `${url.split(':', 1)[0].toUpperCase()} · ${url} · ${expandedUptimeChecks.length.toLocaleString()} checks stored on the server`;
   for (const input of [$('#uptime-range-start'), $('#uptime-range-end')]) {
@@ -357,7 +370,7 @@ function renderExpandedUptimeChart() {
 
 $('#uptime-monitors').addEventListener('click', (event) => {
   const chart = event.target.closest('.monitor-chart');
-  if (chart && !chart.classList.contains('empty')) openUptimeChart(chart.closest('.monitor-card').dataset.requestUrl);
+  if (chart && !chart.classList.contains('empty')) openUptimeChart(chart.closest('.monitor-card'));
 });
 $('#uptime-chart-dialog .dialog-close').addEventListener('click', () => $('#uptime-chart-dialog').close());
 for (const input of [$('#uptime-range-start'), $('#uptime-range-end')]) {
@@ -399,7 +412,7 @@ async function refreshUptimePage() {
       if (!job) continue;
       applyMonitorJob(name, job);
       $(`#${id}-toggle`).setAttribute('aria-checked', String(job.enabled));
-      $(`#${id}-interval`).value = String(job.interval || 5);
+      $(`#${id}-interval`).value = String(job.interval || (job.intervalUnit === 'seconds' ? 60 : 5));
       $(`#${id}-job-status`).textContent = jobStatus(job);
     }
     requestHistory = Array.isArray(history) ? history : [];
