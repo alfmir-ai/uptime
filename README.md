@@ -38,9 +38,10 @@ Settings and history are written under `data/`, which is ignored by Git.
 
 ## Checks
 
-Each monitor can be enabled and given an interval from the dashboard. The
-server schedules checks in the background and appends every result to the
-history file. The IPFS verification check compares the Lochner origin manifest
+Each monitor can be enabled and given an interval from the dashboard. Most
+checks use minute intervals; the second HTTPS checks for `lemmy.lochner.tech`
+and `news.lochner.tech` use second intervals. The server schedules checks in
+the background and appends every result to the history file. The IPFS verification check compares the Lochner origin manifest
 against configured public IPNS gateways and, when requested by the manifest,
 the GitHub revision.
 

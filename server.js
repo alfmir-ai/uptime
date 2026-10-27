@@ -36,8 +36,10 @@ const jobDefinitions = {
   httpsLochnerApparelPage: { enabled: 'httpsLochnerApparelPageEnabled', interval: 'httpsLochnerApparelPageIntervalMinutes', url: 'https://lochner.tech/lochner-apparel.html' },
   httpLemmy: { enabled: 'httpLemmyEnabled', interval: 'httpLemmyIntervalMinutes', offsetMs: 30_000, url: 'http://lemmy.lochner.tech' },
   httpsLemmy: { enabled: 'httpsLemmyEnabled', interval: 'httpsLemmyIntervalMinutes', url: 'https://lemmy.lochner.tech' },
+  httpsLemmySecond: { enabled: 'httpsLemmySecondEnabled', interval: 'httpsLemmySecondIntervalSeconds', intervalUnit: 'seconds', defaultInterval: 60, url: 'https://lemmy.lochner.tech' },
   httpNews: { enabled: 'httpNewsEnabled', interval: 'httpNewsIntervalMinutes', offsetMs: 30_000, url: 'http://news.lochner.tech' },
   httpsNews: { enabled: 'httpsNewsEnabled', interval: 'httpsNewsIntervalMinutes', url: 'https://news.lochner.tech' },
+  httpsNewsSecond: { enabled: 'httpsNewsSecondEnabled', interval: 'httpsNewsSecondIntervalSeconds', intervalUnit: 'seconds', defaultInterval: 60, url: 'https://news.lochner.tech' },
   tcpIpfsPublishing: { enabled: 'tcpIpfsPublishingEnabled', interval: 'tcpIpfsPublishingIntervalMinutes', host: ipfsPublishingHost, port: ipfsPublishingPort, url: ipfsPublishingUrl },
   ipfsLochnerVerification: { enabled: 'ipfsLochnerVerificationEnabled', interval: 'ipfsLochnerVerificationIntervalMinutes', url: 'ipfs://lochner.tech' },
   httpAlfmir: { enabled: 'httpAlfmirEnabled', interval: 'httpAlfmirIntervalMinutes', offsetMs: 30_000, url: 'http://alfmir.ai' },
@@ -51,9 +53,15 @@ const jobDefinitions = {
   httpLitellmAlsh: { enabled: 'httpLitellmAlshEnabled', interval: 'httpLitellmAlshIntervalMinutes', offsetMs: 30_000, url: 'http://litellm.alfe.sh' },
   httpsLitellmAlsh: { enabled: 'httpsLitellmAlshEnabled', interval: 'httpsLitellmAlshIntervalMinutes', url: 'https://litellm.alfe.sh' }
 };
-const defaultSettings = Object.fromEntries(Object.values(jobDefinitions).flatMap(({ enabled, interval }) => [
-  [enabled, false], [interval, 5]
+const defaultSettings = Object.fromEntries(Object.values(jobDefinitions).flatMap(({ enabled, interval, defaultInterval = 5 }) => [
+  [enabled, false], [interval, defaultInterval]
 ]));
+const intervalDefinitions = new Map(Object.values(jobDefinitions).map((definition) => [definition.interval, definition]));
+
+function clampInterval(definition, interval) {
+  const maximum = definition.intervalUnit === 'seconds' ? 86_400 : 1440;
+  return Math.min(maximum, Math.max(1, interval));
+}
 
 export function millisecondsUntilAlignedRun(intervalMs, offsetMs = 0, nowMs = Date.now()) {
   const elapsed = ((nowMs - offsetMs) % intervalMs + intervalMs) % intervalMs;
@@ -83,7 +91,8 @@ export function createUptimeWebappServer({
       const value = saved[key];
       if (key.endsWith('Enabled')) return [key, typeof value === 'boolean' ? value : fallback];
       const interval = Number(value);
-      return [key, Number.isFinite(interval) ? Math.min(1440, Math.max(1, interval)) : fallback];
+      const definition = intervalDefinitions.get(key);
+      return [key, Number.isFinite(interval) && definition ? clampInterval(definition, interval) : fallback];
     }));
   }
 
@@ -125,6 +134,7 @@ export function createUptimeWebappServer({
       const payload = {
         enabled: settings[definition.enabled] === true,
         interval: Number(settings[definition.interval]),
+        intervalUnit: definition.intervalUnit || 'minutes',
         url: definition.url || null,
         ...(jobStates.get(name) || {})
       };
@@ -133,7 +143,7 @@ export function createUptimeWebappServer({
     }));
   }
 
-  async function runJob(definition) {
+  async function runJob(name, definition) {
     if ('host' in definition && !definition.host) throw new Error('IPFS_PUBLISHING_HOST must be set to run the IPFS publishing check.');
     const startedAt = Date.now();
     const { url } = definition;
@@ -141,13 +151,13 @@ export function createUptimeWebappServer({
     try {
       if ('host' in definition) {
         const result = await checkTcp(definition.host, definition.port);
-        await addHistory({ outcome: 'ok', url, latencyMs: result.latencyMs });
+        await addHistory({ job: name, outcome: 'ok', url, latencyMs: result.latencyMs });
         historyRecorded = true;
         return { url, latencyMs: result.latencyMs };
       }
       if (url === 'ipfs://lochner.tech') {
         const result = await verifyIpfs('https://lochner.tech', fetchImpl);
-        await addHistory({ outcome: 'ok', url, latencyMs: result.latencyMs, contentSha256: result.contentSha256, matchingGateways: result.matchingGateways, filesVerified: result.filesVerified });
+        await addHistory({ job: name, outcome: 'ok', url, latencyMs: result.latencyMs, contentSha256: result.contentSha256, matchingGateways: result.matchingGateways, filesVerified: result.filesVerified });
         historyRecorded = true;
         return { url, ...result };
       }
@@ -157,12 +167,12 @@ export function createUptimeWebappServer({
         signal: AbortSignal.timeout(10_000)
       });
       const latencyMs = Date.now() - startedAt;
-      await addHistory({ outcome: response.ok ? 'ok' : 'http-error', url, status: response.status, latencyMs });
+      await addHistory({ job: name, outcome: response.ok ? 'ok' : 'http-error', url, status: response.status, latencyMs });
       historyRecorded = true;
       if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}.`);
       return { url, status: response.status, latencyMs };
     } catch (error) {
-      if (!historyRecorded) await addHistory({ outcome: 'failed', url, latencyMs: Date.now() - startedAt, error: error.message || String(error) });
+      if (!historyRecorded) await addHistory({ job: name, outcome: 'failed', url, latencyMs: Date.now() - startedAt, error: error.message || String(error) });
       throw error;
     }
   }
@@ -173,7 +183,7 @@ export function createUptimeWebappServer({
     Object.assign(state, { running: true, lastStartedAt: new Date().toISOString(), lastError: null });
     jobStates.set(name, state);
     try {
-      state.lastResult = await runJob(definition);
+      state.lastResult = await runJob(name, definition);
       state.lastCompletedAt = new Date().toISOString();
     } catch (error) {
       state.lastError = error.message || String(error);
@@ -190,7 +200,8 @@ export function createUptimeWebappServer({
     const settings = await loadSettings();
     for (const [name, definition] of Object.entries(jobDefinitions)) {
       if (!settings[definition.enabled]) continue;
-      const intervalMs = Math.min(1440, Math.max(1, Number(settings[definition.interval]) || 1)) * 60_000;
+      const interval = clampInterval(definition, Number(settings[definition.interval]) || 1);
+      const intervalMs = interval * (definition.intervalUnit === 'seconds' ? 1_000 : 60_000);
       const scheduleNext = () => {
         const delay = millisecondsUntilAlignedRun(intervalMs, definition.offsetMs || 0);
         const state = jobStates.get(name) || {};
@@ -235,7 +246,7 @@ export function createUptimeWebappServer({
             if ('interval' in config) {
               const interval = Number(config.interval);
               if (!Number.isFinite(interval)) throw new Error('The check interval must be a number.');
-              changes[definition.interval] = Math.min(1440, Math.max(1, interval));
+              changes[definition.interval] = clampInterval(definition, interval);
             }
           }
           if (changes.tcpIpfsPublishingEnabled && !jobDefinitions.tcpIpfsPublishing.host) throw new Error('Set IPFS_PUBLISHING_HOST before enabling the IPFS publishing check.');
