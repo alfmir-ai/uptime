@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const requestMonitors = [
   ['httpLochner', 'http-lochner', 'http://lochner.tech'], ['httpsLochner', 'https-lochner', 'https://lochner.tech'],
+  ['httpsLochnerSecond', 'https-lochner-second', 'https://lochner.tech', 'Lochner (second check)', 'seconds'],
   ['httpWwwLochner', 'http-www-lochner', 'http://www.lochner.tech'], ['httpsWwwLochner', 'https-www-lochner', 'https://www.lochner.tech'],
   ['httpLochnerAlfmirPage', 'http-lochner-alfmir-page', 'http://lochner.tech/alfmir.ai.html', 'Alfmir AI page'], ['httpsLochnerAlfmirPage', 'https-lochner-alfmir-page', 'https://lochner.tech/alfmir.ai.html', 'Alfmir AI page'],
   ['httpLochnerApparelPage', 'http-lochner-apparel-page', 'http://lochner.tech/lochner-apparel.html', 'Lochner Apparel page'], ['httpsLochnerApparelPage', 'https-lochner-apparel-page', 'https://lochner.tech/lochner-apparel.html', 'Lochner Apparel page'],
@@ -11,6 +12,7 @@ const requestMonitors = [
   ['tcpIpfsPublishing', 'tcp-ipfs-publishing', '', 'IPFS Publishing Host'],
   ['ipfsLochnerVerification', 'ipfs-lochner-verification', 'ipfs://lochner.tech', 'IPFS Verification'],
   ['httpAlfmir', 'http-alfmir', 'http://alfmir.ai'], ['httpsAlfmir', 'https-alfmir', 'https://alfmir.ai'],
+  ['httpsAlfmirSecond', 'https-alfmir-second', 'https://alfmir.ai', 'Alfmir (second check)', 'seconds'],
   ['httpWwwAlfmir', 'http-www-alfmir', 'http://www.alfmir.ai'], ['httpsWwwAlfmir', 'https-www-alfmir', 'https://www.alfmir.ai'],
   ['httpChatAlfmir', 'http-chat-alfmir', 'http://chat.alfmir.ai'], ['httpsChatAlfmir', 'https-chat-alfmir', 'https://chat.alfmir.ai'],
   ['httpCodeAlfmir', 'http-code-alfmir', 'http://code.alfmir.ai'], ['httpsCodeAlfmir', 'https-code-alfmir', 'https://code.alfmir.ai'],
@@ -27,10 +29,23 @@ const uptimeSaveVersions = new Map();
 const uptimeSaveQueues = new Map();
 const httpFilterStorageKey = 'uptime-show-http-checks';
 const wwwFilterStorageKey = 'uptime-show-www-checks';
+const secondsFilterStorageKey = 'uptime-show-seconds-checks';
+const minutesFilterStorageKey = 'uptime-show-minutes-checks';
 let showHttpChecks = true;
 let showWwwChecks = true;
+let showSecondsChecks = true;
+let showMinutesChecks = true;
 try { showHttpChecks = localStorage.getItem(httpFilterStorageKey) !== 'false'; } catch {}
 try { showWwwChecks = localStorage.getItem(wwwFilterStorageKey) !== 'false'; } catch {}
+try { showSecondsChecks = localStorage.getItem(secondsFilterStorageKey) !== 'false'; } catch {}
+try { showMinutesChecks = localStorage.getItem(minutesFilterStorageKey) !== 'false'; } catch {}
+const filterViews = {
+  http: { label: 'HTTP', description: 'HTTP checks', matches: (card) => card.dataset.requestKind === 'http' },
+  www: { label: 'WWW', description: 'WWW checks', matches: (card) => card.dataset.requestWww === 'true' },
+  seconds: { label: 'seconds', description: 'seconds checks', matches: (card) => card.dataset.intervalUnit === 'seconds' },
+  minutes: { label: 'minute', description: 'minute checks', matches: (card) => card.dataset.intervalUnit !== 'seconds' }
+};
+const filteredView = filterViews[new URLSearchParams(location.search).get('filter')] || null;
 
 function monitorKind(url) {
   try {
@@ -55,15 +70,36 @@ function historyMatchesJob(entry, jobName, url) {
 }
 
 function cardHiddenByFilters(card) {
+  if (filteredView) return !filteredView.matches(card);
   return (card.dataset.requestKind === 'http' && !showHttpChecks)
-    || (card.dataset.requestWww === 'true' && !showWwwChecks);
+    || (card.dataset.requestWww === 'true' && !showWwwChecks)
+    || (card.dataset.intervalUnit === 'seconds' && !showSecondsChecks)
+    || (card.dataset.intervalUnit !== 'seconds' && !showMinutesChecks);
 }
 
 function applyUptimeFilters() {
   $('#http-filter-toggle').setAttribute('aria-checked', String(showHttpChecks));
   $('#www-filter-toggle').setAttribute('aria-checked', String(showWwwChecks));
+  $('#seconds-filter-toggle').setAttribute('aria-checked', String(showSecondsChecks));
+  $('#minutes-filter-toggle').setAttribute('aria-checked', String(showMinutesChecks));
   try { localStorage.setItem(httpFilterStorageKey, String(showHttpChecks)); } catch {}
   try { localStorage.setItem(wwwFilterStorageKey, String(showWwwChecks)); } catch {}
+  try { localStorage.setItem(secondsFilterStorageKey, String(showSecondsChecks)); } catch {}
+  try { localStorage.setItem(minutesFilterStorageKey, String(showMinutesChecks)); } catch {}
+  const filters = $('#uptime-filters');
+  const note = $('#filtered-view-note');
+  if (filteredView) {
+    filters.hidden = true;
+    const back = document.createElement('a');
+    back.href = '/';
+    back.textContent = 'View all checks';
+    note.replaceChildren(`Showing only ${filteredView.description}. `, back);
+    note.hidden = false;
+    document.title = `Uptime · ${filteredView.label} checks`;
+  } else {
+    filters.hidden = false;
+    note.hidden = true;
+  }
   for (const card of document.querySelectorAll('.monitor-card[data-request-job]')) {
     card.hidden = cardHiddenByFilters(card);
   }
@@ -232,6 +268,16 @@ $('#http-filter-toggle').addEventListener('click', () => {
 
 $('#www-filter-toggle').addEventListener('click', () => {
   showWwwChecks = !showWwwChecks;
+  applyUptimeFilters();
+});
+
+$('#seconds-filter-toggle').addEventListener('click', () => {
+  showSecondsChecks = !showSecondsChecks;
+  applyUptimeFilters();
+});
+
+$('#minutes-filter-toggle').addEventListener('click', () => {
+  showMinutesChecks = !showMinutesChecks;
   applyUptimeFilters();
 });
 

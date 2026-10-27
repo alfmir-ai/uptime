@@ -39,11 +39,12 @@ Settings and history are written under `data/`, which is ignored by Git.
 ## Checks
 
 Each monitor can be enabled and given an interval from the dashboard. Most
-checks use minute intervals; the second HTTPS checks for `lemmy.lochner.tech`
-and `news.lochner.tech` use second intervals. The server schedules checks in
-the background and appends every result to the history file. The IPFS verification check compares the Lochner origin manifest
-against configured public IPNS gateways and, when requested by the manifest,
-the GitHub revision.
+checks use minute intervals; the second HTTPS checks for `lochner.tech`,
+`alfmir.ai`, `lemmy.lochner.tech`, and `news.lochner.tech` use second
+intervals. The server schedules checks in the background and appends every
+result to the history file. The IPFS verification check compares the Lochner
+origin manifest against configured public IPNS gateways and, when requested by
+the manifest, the GitHub revision.
 
 The remote TCP monitor shells out to `ssh` and `nc`, so `IPFS_PUBLISHING_HOST`,
 `IPFS_UPTIME_SSH_HOST`, and the SSH key referenced by `IPFS_UPTIME_SSH_KEY_PEM`

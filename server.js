@@ -28,6 +28,7 @@ const ipfsPublishingUrl = ipfsPublishingHost ? `tcp://${ipfsPublishingHost}:${ip
 const jobDefinitions = {
   httpLochner: { enabled: 'httpLochnerEnabled', interval: 'httpLochnerIntervalMinutes', offsetMs: 30_000, url: 'http://lochner.tech' },
   httpsLochner: { enabled: 'httpsLochnerEnabled', interval: 'httpsLochnerIntervalMinutes', url: 'https://lochner.tech' },
+  httpsLochnerSecond: { enabled: 'httpsLochnerSecondEnabled', interval: 'httpsLochnerSecondIntervalSeconds', intervalUnit: 'seconds', defaultInterval: 60, url: 'https://lochner.tech' },
   httpWwwLochner: { enabled: 'httpWwwLochnerEnabled', interval: 'httpWwwLochnerIntervalMinutes', offsetMs: 30_000, url: 'http://www.lochner.tech' },
   httpsWwwLochner: { enabled: 'httpsWwwLochnerEnabled', interval: 'httpsWwwLochnerIntervalMinutes', url: 'https://www.lochner.tech' },
   httpLochnerAlfmirPage: { enabled: 'httpLochnerAlfmirPageEnabled', interval: 'httpLochnerAlfmirPageIntervalMinutes', offsetMs: 30_000, url: 'http://lochner.tech/alfmir.ai.html' },
@@ -44,6 +45,7 @@ const jobDefinitions = {
   ipfsLochnerVerification: { enabled: 'ipfsLochnerVerificationEnabled', interval: 'ipfsLochnerVerificationIntervalMinutes', url: 'ipfs://lochner.tech' },
   httpAlfmir: { enabled: 'httpAlfmirEnabled', interval: 'httpAlfmirIntervalMinutes', offsetMs: 30_000, url: 'http://alfmir.ai' },
   httpsAlfmir: { enabled: 'httpsAlfmirEnabled', interval: 'httpsAlfmirIntervalMinutes', url: 'https://alfmir.ai' },
+  httpsAlfmirSecond: { enabled: 'httpsAlfmirSecondEnabled', interval: 'httpsAlfmirSecondIntervalSeconds', intervalUnit: 'seconds', defaultInterval: 60, url: 'https://alfmir.ai' },
   httpWwwAlfmir: { enabled: 'httpWwwAlfmirEnabled', interval: 'httpWwwAlfmirIntervalMinutes', offsetMs: 30_000, url: 'http://www.alfmir.ai' },
   httpsWwwAlfmir: { enabled: 'httpsWwwAlfmirEnabled', interval: 'httpsWwwAlfmirIntervalMinutes', url: 'https://www.alfmir.ai' },
   httpChatAlfmir: { enabled: 'httpChatAlfmirEnabled', interval: 'httpChatAlfmirIntervalMinutes', offsetMs: 30_000, url: 'http://chat.alfmir.ai' },
