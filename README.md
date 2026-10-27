@@ -29,12 +29,15 @@ environment take precedence.
 | `UPTIME_WEBAPP_PORT` | `4175` | Dashboard port. |
 | `UPTIME_WEBAPP_JOBS_DATA` | `./data/jobs.json` | Job settings file. |
 | `UPTIME_WEBAPP_HISTORY_DATA` | `./data/history.jsonl` | Check history file. |
+| `UPTIME_WEBAPP_ORDER_DATA` | `./data/monitor-order.json` | Monitor display order file. |
 | `IPFS_PUBLISHING_HOST` | none | IP address or hostname of the IPFS publishing target. Required to enable the IPFS publishing monitor. |
 | `IPFS_PUBLISHING_PORT` | `4001` | TCP port of the IPFS publishing target. |
 | `IPFS_UPTIME_SSH_HOST` | none | SSH host used for the remote TCP check. Required to enable the IPFS publishing monitor. |
 | `IPFS_UPTIME_SSH_KEY_PEM` | none | PEM private key used for the remote TCP check. Required to enable the IPFS publishing monitor. |
 
-Settings and history are written under `data/`, which is ignored by Git.
+Settings, history, and the monitor display order are written under `data/`, which
+is ignored by Git. Drag a monitor by its title to reorder the graphs; the order
+is saved on the server and restored when the dashboard reloads.
 
 ## Checks
 

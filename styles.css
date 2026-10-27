@@ -32,6 +32,9 @@ button { -webkit-tap-highlight-color:transparent; }
 .monitor-card>header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .monitor-card header p { margin:0 0 4px; color:var(--blue); font-size:10px; font-weight:800; letter-spacing:.12em; }
 .monitor-card h3 { margin:0; overflow-wrap:anywhere; font-size:16px; }
+.monitor-card h3[draggable="true"] { cursor:grab; user-select:none; }
+.monitor-card h3[draggable="true"]:active { cursor:grabbing; }
+.monitor-card.dragging { opacity:.45; border-style:dashed; }
 .monitor-card header div>small { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
 .monitor-health { padding:5px 8px; border-radius:999px; color:#177245; background:#20a4641b; font-size:10px; font-weight:800; white-space:nowrap; }
 .monitor-health.failed { color:#a52d42; background:#d43f5818; }
