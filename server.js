@@ -73,6 +73,7 @@ export function millisecondsUntilAlignedRun(intervalMs, offsetMs = 0, nowMs = Da
 export function createUptimeWebappServer({
   jobsPath = process.env.UPTIME_WEBAPP_JOBS_DATA || join(dataRoot, 'jobs.json'),
   historyPath = process.env.UPTIME_WEBAPP_HISTORY_DATA || join(dataRoot, 'history.jsonl'),
+  orderPath = process.env.UPTIME_WEBAPP_ORDER_DATA || join(dataRoot, 'monitor-order.json'),
   fetchImpl = fetch,
   checkTcp = checkTcpPortFromRemote,
   verifyIpfs = verifyIpfsPublication,
@@ -81,6 +82,7 @@ export function createUptimeWebappServer({
 } = {}) {
   let settingsWrite = Promise.resolve();
   let historyWrite = Promise.resolve();
+  let orderWrite = Promise.resolve();
   const jobTimers = new Map();
   const jobStates = new Map();
 
@@ -128,6 +130,41 @@ export function createUptimeWebappServer({
       });
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     return entries.sort((a, b) => new Date(b.ranAt) - new Date(a.ranAt));
+  }
+
+  function normalizeMonitorOrder(value) {
+    const input = Array.isArray(value) ? value : value && typeof value === 'object' ? value.order : null;
+    if (!Array.isArray(input)) throw new Error('Monitor order must be an array of job names.');
+    const known = new Set(Object.keys(jobDefinitions));
+    const order = [];
+    for (const name of input) {
+      if (typeof name !== 'string') throw new Error('Monitor order must contain job names.');
+      if (known.has(name) && !order.includes(name)) order.push(name);
+    }
+    for (const name of known) if (!order.includes(name)) order.push(name);
+    return order;
+  }
+
+  async function loadMonitorOrder() {
+    let saved;
+    try { saved = JSON.parse(await readFile(orderPath, 'utf8')); }
+    catch (error) {
+      if (error.code === 'ENOENT') return Object.keys(jobDefinitions);
+      throw error;
+    }
+    return normalizeMonitorOrder(saved);
+  }
+
+  async function saveMonitorOrder(value) {
+    const order = normalizeMonitorOrder(value);
+    orderWrite = orderWrite.catch(() => {}).then(async () => {
+      await mkdir(dirname(orderPath), { recursive: true });
+      const temporaryPath = `${orderPath}.${process.pid}.${Date.now()}.tmp`;
+      await writeFile(temporaryPath, `${JSON.stringify(order, null, 2)}\n`, 'utf8');
+      await rename(temporaryPath, orderPath);
+    });
+    await orderWrite;
+    return order;
   }
 
   async function jobsPayload() {
@@ -258,6 +295,18 @@ export function createUptimeWebappServer({
         } catch (error) {
           return json(response, error.status === 413 ? 413 : 400, { error: error.message || 'Could not save uptime jobs.' });
         }
+      }
+      return json(response, 405, { error: 'Method not allowed.' });
+    }
+
+    if (url.pathname === '/api/monitor-order') {
+      if (request.method === 'GET') {
+        try { return json(response, 200, await loadMonitorOrder()); }
+        catch (error) { return json(response, 500, { error: error.message || 'Could not load monitor order.' }); }
+      }
+      if (request.method === 'PUT') {
+        try { return json(response, 200, await saveMonitorOrder(await readJson(request))); }
+        catch (error) { return json(response, error.status === 413 ? 413 : 400, { error: error.message || 'Could not save monitor order.' }); }
       }
       return json(response, 405, { error: 'Method not allowed.' });
     }

@@ -153,3 +153,46 @@ test('loads local history and rejects unsupported or oversized job updates', asy
   assert.equal(oversized.status, 413);
   assert.equal((await fetch(`${origin}/api/uptime-history`, { method: 'PATCH' })).status, 405);
 });
+
+test('persists the monitor display order', async (t) => {
+  const directory = await createTempDirectory(t);
+  const orderPath = join(directory, 'monitor-order.json');
+  const server = createUptimeWebappServer({
+    jobsPath: join(directory, 'jobs.json'),
+    historyPath: join(directory, 'history.jsonl'),
+    orderPath,
+    fetchImpl: async () => { throw new Error('Unexpected check request.'); }
+  });
+  const origin = await listen(server, t);
+
+  const initialOrder = await (await fetch(`${origin}/api/monitor-order`)).json();
+  assert.equal(initialOrder[0], 'httpLochner');
+  assert.equal(initialOrder.length, new Set(initialOrder).size);
+
+  const reversed = [...initialOrder].reverse();
+  const saved = await fetch(`${origin}/api/monitor-order`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(reversed)
+  });
+  assert.deepEqual(await saved.json(), reversed);
+  assert.deepEqual(JSON.parse(await readFile(orderPath, 'utf8')), reversed);
+
+  const partial = await fetch(`${origin}/api/monitor-order`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(['httpsNews', 'httpsNews', 'unknown'])
+  });
+  const normalized = await partial.json();
+  assert.equal(normalized[0], 'httpsNews');
+  assert.equal(normalized.length, initialOrder.length);
+  assert.equal(new Set(normalized).size, initialOrder.length);
+
+  const invalid = await fetch(`${origin}/api/monitor-order`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nope: true })
+  });
+  assert.equal(invalid.status, 400);
+  assert.equal((await fetch(`${origin}/api/monitor-order`, { method: 'POST' })).status, 405);
+});

@@ -25,6 +25,9 @@ for (const [name, , url] of requestMonitors) {
 let requestHistory = [];
 let expandedUptimeChecks = [];
 let uptimeRefreshTimer;
+let monitorOrder = requestMonitors.map(([name]) => name);
+let draggedMonitorCard = null;
+let monitorOrderSaveVersion = 0;
 const uptimeSaveVersions = new Map();
 const uptimeSaveQueues = new Map();
 const httpFilterStorageKey = 'uptime-show-http-checks';
@@ -128,6 +131,8 @@ function buildUptimeMonitors() {
     protocol.textContent = parsed ? url.split(':', 1)[0].toUpperCase() : 'TCP';
     const heading = document.createElement('h3');
     heading.textContent = label || parsed?.host || name;
+    heading.draggable = true;
+    heading.title = 'Drag to reorder';
     service.append(protocol, heading);
     if (label) {
       const host = document.createElement('small');
@@ -176,8 +181,83 @@ function buildUptimeMonitors() {
     $(`[data-monitor-group="${group}"]`).append(card);
   }
 }
+function applyMonitorOrder(order) {
+  if (!Array.isArray(order)) return;
+  const known = new Set(requestMonitors.map(([name]) => name));
+  const saved = order.filter((name) => known.has(name));
+  const remaining = monitorOrder.filter((name) => !saved.includes(name));
+  monitorOrder = [...saved, ...remaining];
+  for (const grid of document.querySelectorAll('[data-monitor-group]')) {
+    const cards = [...grid.querySelectorAll('.monitor-card[data-request-job]')];
+    cards.sort((a, b) => monitorOrder.indexOf(a.dataset.requestJob) - monitorOrder.indexOf(b.dataset.requestJob));
+    grid.append(...cards);
+  }
+}
+
+function syncMonitorOrderFromDom() {
+  monitorOrder = [...document.querySelectorAll('.monitor-card[data-request-job]')].map((card) => card.dataset.requestJob);
+}
+
+async function loadMonitorOrder() {
+  try {
+    applyMonitorOrder(await fetchJson('/api/monitor-order'));
+  } catch {}
+}
+
+async function saveMonitorOrder() {
+  const version = ++monitorOrderSaveVersion;
+  const order = [...monitorOrder];
+  try {
+    await fetchJson('/api/monitor-order', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(order)
+    });
+  } catch (error) {
+    if (version === monitorOrderSaveVersion) showToast(error.message || 'Could not save graph order.', true);
+  }
+}
+
+applyMonitorOrder(monitorOrder);
 buildUptimeMonitors();
 applyUptimeFilters();
+loadMonitorOrder();
+
+const uptimeMonitors = $('#uptime-monitors');
+uptimeMonitors.addEventListener('dragstart', (event) => {
+  const card = event.target.closest('.monitor-card[data-request-job]');
+  if (!card || event.target.tagName !== 'H3') {
+    event.preventDefault();
+    return;
+  }
+  draggedMonitorCard = card;
+  card.classList.add('dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', card.dataset.requestJob);
+});
+uptimeMonitors.addEventListener('dragover', (event) => {
+  if (!draggedMonitorCard) return;
+  const grid = draggedMonitorCard.parentElement;
+  const target = event.target.closest('.monitor-card[data-request-job]');
+  if (!target || target === draggedMonitorCard || target.parentElement !== grid) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  const bounds = target.getBoundingClientRect();
+  const before = event.clientY < bounds.top + bounds.height / 2
+    || (event.clientY < bounds.bottom && event.clientX < bounds.left + bounds.width / 2);
+  grid.insertBefore(draggedMonitorCard, before ? target : target.nextElementSibling);
+});
+uptimeMonitors.addEventListener('drop', (event) => {
+  if (draggedMonitorCard) event.preventDefault();
+});
+uptimeMonitors.addEventListener('dragend', () => {
+  if (!draggedMonitorCard) return;
+  draggedMonitorCard.classList.remove('dragging');
+  draggedMonitorCard = null;
+  const previousOrder = monitorOrder;
+  syncMonitorOrderFromDom();
+  if (monitorOrder.join() !== previousOrder.join()) saveMonitorOrder();
+});
 
 function applyMonitorJob(name, job) {
   const card = document.querySelector(`[data-request-job="${name}"]`);
