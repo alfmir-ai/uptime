@@ -87,6 +87,12 @@ test('runs the second HTTPS monitors on seconds-based intervals', async (t) => {
   await new Promise(setImmediate);
 
   const initialJobs = await (await fetch(`${origin}/api/jobs`)).json();
+  assert.equal(initialJobs.httpsLochnerSecond.url, 'https://lochner.tech');
+  assert.equal(initialJobs.httpsLochnerSecond.interval, 60);
+  assert.equal(initialJobs.httpsLochnerSecond.intervalUnit, 'seconds');
+  assert.equal(initialJobs.httpsAlfmirSecond.url, 'https://alfmir.ai');
+  assert.equal(initialJobs.httpsAlfmirSecond.interval, 60);
+  assert.equal(initialJobs.httpsAlfmirSecond.intervalUnit, 'seconds');
   assert.equal(initialJobs.httpsLemmySecond.url, 'https://lemmy.lochner.tech');
   assert.equal(initialJobs.httpsLemmySecond.interval, 60);
   assert.equal(initialJobs.httpsLemmySecond.intervalUnit, 'seconds');
