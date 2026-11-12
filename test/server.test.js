@@ -154,6 +154,33 @@ test('loads local history and rejects unsupported or oversized job updates', asy
   assert.equal((await fetch(`${origin}/api/uptime-history`, { method: 'PATCH' })).status, 405);
 });
 
+test('serves only the most recent history entries when a limit is requested', async (t) => {
+  const directory = await createTempDirectory(t);
+  const historyPath = join(directory, 'history.jsonl');
+  const entries = ['first', 'second', 'third'].map((job, index) => ({
+    job,
+    url: 'https://lochner.tech',
+    ranAt: new Date(Date.UTC(2026, 9, 18, 12, index)).toISOString(),
+    outcome: 'ok'
+  }));
+  await writeFile(historyPath, `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n`);
+  const server = createUptimeWebappServer({
+    jobsPath: join(directory, 'jobs.json'),
+    historyPath,
+    fetchImpl: async () => { throw new Error('Unexpected check request.'); }
+  });
+  const origin = await listen(server, t);
+
+  const all = await (await fetch(`${origin}/api/uptime-history`)).json();
+  assert.deepEqual(all.map((entry) => entry.job), ['third', 'second', 'first']);
+
+  const limited = await (await fetch(`${origin}/api/uptime-history?limit=2`)).json();
+  assert.deepEqual(limited.map((entry) => entry.job), ['third', 'second']);
+
+  const invalid = await (await fetch(`${origin}/api/uptime-history?limit=nope`)).json();
+  assert.equal(invalid.length, 3);
+});
+
 test('persists the monitor display order', async (t) => {
   const directory = await createTempDirectory(t);
   const orderPath = join(directory, 'monitor-order.json');

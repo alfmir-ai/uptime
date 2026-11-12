@@ -1,6 +1,8 @@
+import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { appendFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { checkTcpPortFromRemote } from './checks.js';
@@ -59,6 +61,8 @@ const defaultSettings = Object.fromEntries(Object.values(jobDefinitions).flatMap
   [enabled, false], [interval, defaultInterval]
 ]));
 const intervalDefinitions = new Map(Object.values(jobDefinitions).map((definition) => [definition.interval, definition]));
+const defaultHistoryLimit = 5_000;
+const maximumHistoryLimit = 20_000;
 
 function clampInterval(definition, interval) {
   const maximum = definition.intervalUnit === 'seconds' ? 86_400 : 1440;
@@ -122,14 +126,30 @@ export function createUptimeWebappServer({
     await historyWrite;
   }
 
-  async function loadHistory() {
-    let entries = [];
-    try {
-      entries = (await readFile(historyPath, 'utf8')).split(/\r?\n/).filter(Boolean).flatMap((line) => {
-        try { return [JSON.parse(line)]; } catch { return []; }
-      });
-    } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    return entries.sort((a, b) => new Date(b.ranAt) - new Date(a.ranAt));
+  async function loadHistory(limit = defaultHistoryLimit) {
+    let size;
+    try { size = (await stat(historyPath)).size; }
+    catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+    const start = Math.max(0, size - Math.max(64 * 1024, limit * 512));
+    const ring = new Array(limit);
+    let seen = 0;
+    let skipPartialLine = start > 0;
+    const lines = createInterface({
+      input: createReadStream(historyPath, { encoding: 'utf8', start }),
+      crlfDelay: Infinity
+    });
+    for await (const line of lines) {
+      if (skipPartialLine) { skipPartialLine = false; continue; }
+      if (!line) continue;
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      ring[seen % limit] = entry;
+      seen += 1;
+    }
+    const length = Math.min(seen, limit);
+    const entries = new Array(length);
+    for (let index = 0; index < length; index += 1) entries[index] = ring[(seen - length + index) % limit];
+    return entries.reverse().sort((a, b) => new Date(b.ranAt) - new Date(a.ranAt));
   }
 
   function normalizeMonitorOrder(value) {
@@ -206,6 +226,7 @@ export function createUptimeWebappServer({
         signal: AbortSignal.timeout(10_000)
       });
       const latencyMs = Date.now() - startedAt;
+      await response.body?.cancel().catch(() => {});
       await addHistory({ job: name, outcome: response.ok ? 'ok' : 'http-error', url, status: response.status, latencyMs });
       historyRecorded = true;
       if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}.`);
@@ -313,7 +334,13 @@ export function createUptimeWebappServer({
 
     if (url.pathname === '/api/uptime-history') {
       if (request.method !== 'GET') return json(response, 405, { error: 'Method not allowed.' });
-      try { return json(response, 200, await loadHistory()); }
+      try {
+        const requestedLimit = Number(url.searchParams.get('limit'));
+        const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+          ? Math.min(requestedLimit, maximumHistoryLimit)
+          : defaultHistoryLimit;
+        return json(response, 200, await loadHistory(limit));
+      }
       catch (error) { return json(response, 500, { error: error.message || 'Could not load uptime history.' }); }
     }
 
